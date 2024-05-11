@@ -32,7 +32,7 @@ public class Connector {
 
     }
 
-    public void connectToNetwork() throws IOException, InterruptedException, NoSuchAlgorithmException {
+    public void connectToNetwork() throws IOException, InterruptedException, NoSuchAlgorithmException, CloneNotSupportedException {
         DataOutputStream out = new DataOutputStream(socket.getOutputStream());
         out.write(HexFormat.of().parseHex(generateVersionPayload()));
         out.flush();

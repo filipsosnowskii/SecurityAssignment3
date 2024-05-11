@@ -15,24 +15,20 @@ import java.util.List;
 
 public class PayloadGenerator {
 
-    public static String generateVersionPayload() throws NoSuchAlgorithmException, UnknownHostException {
+    public static String generateVersionPayload() throws NoSuchAlgorithmException, UnknownHostException, CloneNotSupportedException {
         StringBuilder stringBuilder = new StringBuilder();
         //Header
         String magicNumber = "F9BEB4D9";
         String versionCommand = "76657273696F6E0000000000";
         //Payload
-        //Convert int to byte array https://stackoverflow.com/questions/2183240/java-integer-to-byte-array
-//        int version = 70015;
         String version = "0001117F"; //70015 in hex
         String services = "0100000000000000";
         long timestamp = System.currentTimeMillis() / 1000L;
-//        byte[] version =  ByteBuffer.allocate(4).putInt(70015).array(); //70015 is the most recent version https://developer.bitcoin.org/reference/p2p_networking.html
-//        byte[] services =  HexFormat.of().parseHex("0100000000000000");
-//        byte[] timestamp = ByteBuffer.allocate(8).putLong(System.currentTimeMillis() / 1000L).array();
         //Find ipv4 address
         StringBuilder ipString = new StringBuilder();
         ipString.append("00000000000000000000FFFF");
-        String ipv4Address = InetAddress.getLocalHost().getHostAddress(); //TODO:convert address to hex
+        String ipv4Address = InetAddress.getLocalHost().getHostAddress();
+        //convert address to hex and provide last 4 bytes
         ipString.append(String.format("%02x", new BigInteger(1, ipv4Address.getBytes())).toUpperCase().substring(ipString.length()-8));
         String bitcoinPort = "208D"; //8333 in hex
         //Receiver address
@@ -56,7 +52,7 @@ public class PayloadGenerator {
         stringBuilder.append(versionCommand);
         stringBuilder.append(payloadLengthCommand);
         stringBuilder.append(calculateCheckSum(payload.toString()));
-//        stringBuilder.append("54DED412");//calculateCheckSum(stringBuilder.toString())); TODO: fix checksum
+//        stringBuilder.append("54DED412");//calculateCheckSum(stringBuilder.toString()));
         //Version payload
         stringBuilder.append(payload);
         return stringBuilder.toString();
@@ -84,14 +80,14 @@ public class PayloadGenerator {
         return stringBuilder.toString();
     }
 
-    private static String calculateCheckSum(String string) throws NoSuchAlgorithmException {
+    public static String calculateCheckSum(String string) throws NoSuchAlgorithmException, CloneNotSupportedException {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
-        byte[] hash = digest.digest(string.getBytes());
+        byte[] hash = digest.digest(HexFormat.of().parseHex(string));
         byte[] hash2 = digest.digest(hash);
         StringBuilder checkSum = new StringBuilder();
         for (int i = 0; i < 4; i++) {
             checkSum.append(Integer.toHexString(hash2[i] & 0xFF).toUpperCase());
-            //checkSum.append(String.format("%02x", hash2[i] & 0xFF).toUpperCase());
+//            checkSum.append(String.format("%02x", hash2[i] & 0xFF).toUpperCase());
         }
         return checkSum.toString();
     }
