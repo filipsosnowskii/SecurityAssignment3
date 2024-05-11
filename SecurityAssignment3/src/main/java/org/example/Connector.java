@@ -2,6 +2,11 @@ package org.example;
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
+//import org.example.PayloadGenerator;
+
+import static org.example.PayloadGenerator.generateVersionPayload;
 
 public class Connector {
 
@@ -27,12 +32,19 @@ public class Connector {
 
     }
 
-    public void connectToNetwork() throws IOException {
-        OutputStream out = socket.getOutputStream();
-        out.write("version".getBytes());
+    public void connectToNetwork() throws IOException, InterruptedException, NoSuchAlgorithmException {
+        DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+        out.write(HexFormat.of().parseHex(generateVersionPayload()));
+        out.flush();
+        System.out.println("Connected to " + socket.getInetAddress().getHostAddress());
 
-//        InputStream in = socket.getInputStream();
-        DataInputStream input = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
-        
+        DataInputStream in = new DataInputStream(socket.getInputStream());
+        byte[] versionHeader = new byte[24];
+        while (in.available() == 0) {
+            System.out.println("Waiting for version header");
+            Thread.sleep(10000);
+        }
+        System.out.println("Read version header");
+        in.read(versionHeader);
     }
 }
