@@ -1,5 +1,6 @@
 package org.example;
 
+import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
@@ -19,22 +20,45 @@ public class PayloadGenerator {
         //Header
         String magicNumber = "F9BEB4D9";
         String versionCommand = "76657273696F6E0000000000";
-        String payLoadLengthCommand = "00000000";//"64 00 00 00";
-//        String checksumCommand = "358d4932";
         //Payload
-//        String versionMessage = "62 EA 00 00";
         //Convert int to byte array https://stackoverflow.com/questions/2183240/java-integer-to-byte-array
-        byte[] version =  ByteBuffer.allocate(4).putInt(70015).array(); //70015 is the most recent version https://developer.bitcoin.org/reference/p2p_networking.html
-        byte[] services =  HexFormat.of().parseHex("0100000000000000");
-        byte[] timestamp = ByteBuffer.allocate(8).putLong(System.currentTimeMillis() / 1000L).array();
+//        int version = 70015;
+        String version = "0001117F"; //70015 in hex
+        String services = "0100000000000000";
+        long timestamp = System.currentTimeMillis() / 1000L;
+//        byte[] version =  ByteBuffer.allocate(4).putInt(70015).array(); //70015 is the most recent version https://developer.bitcoin.org/reference/p2p_networking.html
+//        byte[] services =  HexFormat.of().parseHex("0100000000000000");
+//        byte[] timestamp = ByteBuffer.allocate(8).putLong(System.currentTimeMillis() / 1000L).array();
         //Find ipv4 address
+        StringBuilder ipString = new StringBuilder();
+        ipString.append("00000000000000000000FFFF");
         String ipv4Address = InetAddress.getLocalHost().getHostAddress(); //TODO:convert address to hex
+        ipString.append(String.format("%02x", new BigInteger(1, ipv4Address.getBytes())).toUpperCase().substring(ipString.length()-8));
         String bitcoinPort = "208D"; //8333 in hex
-        byte[] addrRecv = HexFormat.of().parseHex("0100000000000000" + ipv4Address + bitcoinPort);
+        //Receiver address
+        String receiverAddress = "0100000000000000" + ipString + bitcoinPort;
+//        byte[] addrRecv = HexFormat.of().parseHex(receiverAddress);
+        //Calculate payload length
+        StringBuilder payload = new StringBuilder();
+        payload.append(version);
+        payload.append(services);
+        payload.append(Long.toHexString(timestamp).toUpperCase());
+        payload.append(receiverAddress);
+        int payloadLength = payload.length();
+        StringBuilder payloadLengthCommand = new StringBuilder();
+        for (int i = 0; i < 8-Integer.toHexString(payloadLength).length(); i++) {
+            payloadLengthCommand.append("0");
+        }
+        payloadLengthCommand.append(Integer.toHexString(payloadLength));
+//        String payloadLengthCommand = Integer.toHexString(payloadLength);
+        //Version header
         stringBuilder.append(magicNumber);
         stringBuilder.append(versionCommand);
-        stringBuilder.append(payLoadLengthCommand);
-        stringBuilder.append("54DED412");//calculateCheckSum(stringBuilder.toString())); TODO: fix checksum
+        stringBuilder.append(payloadLengthCommand);
+        stringBuilder.append(calculateCheckSum(payload.toString()));
+//        stringBuilder.append("54DED412");//calculateCheckSum(stringBuilder.toString())); TODO: fix checksum
+        //Version payload
+        stringBuilder.append(payload);
         return stringBuilder.toString();
     }
 
@@ -67,6 +91,7 @@ public class PayloadGenerator {
         StringBuilder checkSum = new StringBuilder();
         for (int i = 0; i < 4; i++) {
             checkSum.append(Integer.toHexString(hash2[i] & 0xFF).toUpperCase());
+            //checkSum.append(String.format("%02x", hash2[i] & 0xFF).toUpperCase());
         }
         return checkSum.toString();
     }
