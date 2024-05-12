@@ -33,18 +33,36 @@ public class Connector {
     }
 
     public void connectToNetwork() throws IOException, InterruptedException, NoSuchAlgorithmException, CloneNotSupportedException {
-        DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-        out.write(HexFormat.of().parseHex(generateVersionPayload()));
+//        DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+        OutputStream out = socket.getOutputStream();
+        ByteArrayOutputStream versionMessage = generateVersionPayload();
+        out.write(versionMessage.toByteArray());
         out.flush();
-        System.out.println("Connected to " + socket.getInetAddress().getHostAddress());
+//        String versionHeader = versionMessage.substring(0, 25);
+//        String versionPayload = versionMessage.substring(25);
+//        out.writeBytes(versionHeader);
+//        out.writeBytes(versionPayload);
+//        out.write(HexFormat.of().parseHex(generateVersionPayload()));
+//        out.flush();
+//        System.out.println("Connected to " + socket.getInetAddress().getHostAddress());
 
         DataInputStream in = new DataInputStream(socket.getInputStream());
-        byte[] versionHeader = new byte[24];
+//        InputStream in = socket.getInputStream();
+        byte[] versionHeaderRet = new byte[24];
         while (in.available() == 0) {
             System.out.println("Waiting for version header");
-            Thread.sleep(10000);
+            Thread.sleep(1000);
         }
         System.out.println("Read version header");
-        in.read(versionHeader);
+//        int input = 0;
+        in.readFully(versionHeaderRet);
+        int a = in.readInt();
+        System.out.println(a);
+//        if (input == -1) {
+//            System.out.println("No input received");
+//            return;
+//        }
+//        System.out.println(input);
+//        in.read(versionHeader);
     }
 }
