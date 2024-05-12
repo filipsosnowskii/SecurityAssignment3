@@ -96,7 +96,7 @@ public class Connector {
                 in.readFully(headerCheckSumVer);
                 int headerPayloadLen = Integer.parseInt(Arrays.toString(payloadLengthVer));
 
-                //Read payload
+                //Read payload TODO:add the logic for parsing inv messages
                 byte[] payload2 = new byte[headerPayloadLen];
                 in.readFully(payload2);
                 System.out.println("Read payload");
