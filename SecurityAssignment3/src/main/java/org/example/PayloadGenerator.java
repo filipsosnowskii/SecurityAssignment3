@@ -78,7 +78,7 @@ public class PayloadGenerator {
         String magicNumber = "F9BEB4D9";
         String versionCommand = "76657273696F6E0000000000"; //"version" in hex format with padding
         //Payload
-        int version = 70015;
+        int version = 70016;
         long services = 1;
         long timestamp = System.currentTimeMillis() / 1000L;
         //Set receiver address
@@ -96,9 +96,9 @@ public class PayloadGenerator {
         InetAddress addrFrom = receiverAddress;
         Random random = new Random();
         Long nonce = random.nextLong(Integer.MAX_VALUE);;
-        String userAgent = "";
-        int startHeight = 0;
-        boolean relay = true;
+        String userAgent = "/Satoshi:27.0.0/"; //"";
+        int startHeight = 0; //843192
+        boolean relay = false;
 
         //Write Payload
         ByteArrayOutputStream payloadStream = new ByteArrayOutputStream();
@@ -117,6 +117,7 @@ public class PayloadGenerator {
         outputStream.writeLong(nonce);
 //        outputStream.writeByte(userAgent.length());
 //        outputStream.writeBytes(userAgent);
+        outputStream.write(HexFormat.of().parseHex("00")); //userAgent set to 0
         outputStream.writeInt(startHeight);
         outputStream.writeBoolean(relay);
 
@@ -132,6 +133,58 @@ public class PayloadGenerator {
         out.write(payload);
         return versionMessageStream.toByteArray();
     }
+
+    public void parseInvMessagePayload(byte[] invMessagePayload) {
+        //Determine var_int length
+        int storageLength = 1;
+        String firstByteInHex = String.format("%02x", Byte.parseByte(String.valueOf(invMessagePayload[0])));
+        if (firstByteInHex.startsWith("FD")) {
+            storageLength = 3;
+        }
+        if (firstByteInHex.startsWith("FE")) {
+            storageLength = 5;
+        }
+        if (firstByteInHex.startsWith("FF")) {
+            storageLength = 9;
+        }
+        byte[] numberOfInvEntriesBytes = new byte[storageLength];
+        for (int i = 1; i < storageLength; i++) {
+            numberOfInvEntriesBytes[i-1] = invMessagePayload[i];
+        }
+        ByteBuffer byteBuffer = ByteBuffer.wrap(numberOfInvEntriesBytes);
+        long numberOfInvEntries = 0;
+        if (storageLength == 3) {
+            numberOfInvEntries = byteBuffer.getShort();
+        }
+        if (storageLength == 5) {
+            numberOfInvEntries = byteBuffer.getInt();
+        }
+        if (storageLength == 9) {
+            numberOfInvEntries = byteBuffer.getLong();
+        }
+        System.out.println("Number of of inventory entries: " + numberOfInvEntries);
+        //Parse Inv vectors
+        for (int i = storageLength; i < numberOfInvEntries; i+=36) {
+            if (i>=invMessagePayload.length) {
+                System.out.println("End of payload reached.");
+                System.out.println("-------------------------");
+            }
+            byte[] type = new byte[4];
+            byte[] hash = new byte[32];
+            System.arraycopy(invMessagePayload, i, type, 0, 4);
+            System.arraycopy(invMessagePayload, i+4, hash, 0, 32);
+            byteBuffer = ByteBuffer.wrap(type);
+            long typeInt = byteBuffer.getLong();
+            byteBuffer = ByteBuffer.wrap(hash);
+            String hashString = byteBuffer.toString();
+            System.out.println("Next event:");
+            System.out.println("Object type: " + typeInt);
+            System.out.println("Hash of the object : " + hashString);
+            //TODO: ask for block info
+        }
+    }
+
+
 
     public static byte[] calculateCheckSum(byte[] bytes) throws NoSuchAlgorithmException, CloneNotSupportedException {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");

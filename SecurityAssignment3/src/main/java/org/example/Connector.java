@@ -16,8 +16,8 @@ public class Connector {
 
     //TODO: set so that it connects to specified address, another constructor maybe?
     public Connector() throws IOException {
-//        socket = new Socket("151.21.128.99", 8333);
-        socket = new Socket("54.226.137.205"/*"82.96.96.40"*/, 8333);
+        socket = new Socket("151.21.128.99", 8333);
+//        socket = new Socket("54.226.137.205"/*"82.96.96.40"*/, 8333);
 //        socket.connect(new InetSocketAddress(dnsLookup("seed.bitcoin.sipa.be")[0].getHostAddress(), 8333));
     }
 
@@ -42,18 +42,20 @@ public class Connector {
 
             //Write version message
             byte[] versionMessage = generateVersionPayload();
+            System.out.println("Outgoing Version Message");
             System.out.println(Arrays.toString(versionMessage));
             out.write(versionMessage);
-            out.flush();
+//            out.flush();
             DataInputStream in = new DataInputStream(socket.getInputStream());
 //          InputStream in = socket.getInputStream();
-
-            //Receive version message
-            while (in.available() == 0) {
+            int retries = 0;
+            while (in.available() == 0 && retries < 3) {
                 System.out.println("Waiting for version header");
-                Thread.sleep(10000);
+                Thread.sleep(3000);
+                retries++;
             }
-            System.out.println(in.available());
+            //Receive version message back
+            System.out.println("Incoming message size " + in.available());
             System.out.println("Read version header");
             byte[] magicNumberRet = new byte[4];
             byte[] command = new byte[12];
@@ -75,12 +77,12 @@ public class Connector {
             in.readFully(payload);
             System.out.println("Payload: " + Arrays.toString(payload));
 
-            //Read verrack
-            byte[] verrackHeader = new byte[24];
-            in.readFully(verrackHeader);
+            //Read verack
+            byte[] verackHeader = new byte[24];
+            in.readFully(verackHeader);
 
-            //Send verrack back
-            out.write(verrackHeader);
+            //Send verack back
+            out.write(verackHeader);
             out.flush();
 
             while (true) {
