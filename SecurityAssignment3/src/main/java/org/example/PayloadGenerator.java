@@ -73,8 +73,7 @@ public class PayloadGenerator {
 //        return stringBuilder.toString();
 //    }
 
-    public static ByteArrayOutputStream generateVersionPayload() throws NoSuchAlgorithmException, IOException, CloneNotSupportedException {
-        StringBuilder stringBuilder = new StringBuilder();
+    public static byte[] generateVersionPayload() throws NoSuchAlgorithmException, IOException, CloneNotSupportedException {
         //Header
         String magicNumber = "F9BEB4D9";
         String versionCommand = "76657273696F6E0000000000";
@@ -82,15 +81,16 @@ public class PayloadGenerator {
         int version = 70015;
         long services = 1;
         long timestamp = System.currentTimeMillis() / 1000L;
-        //Find ipv4 address
-//        StringBuilder ipString = new StringBuilder();
-//        ipString.append("00000000000000000000FFFF");
-//        String ipv4Address = InetAddress.getLocalHost().getHostAddress();
-        //convert address to hex and provide last 4 bytes
-//        ipString.append(String.format("%02x", new BigInteger(1, ipv4Address.getBytes())).toUpperCase().substring(ipString.length()-8));
+        //Set receiver address
+        StringBuilder ipString = new StringBuilder();
+        ipString.append("00000000000000000000FFFF");
+        String ipv4Address = InetAddress.getLocalHost().getHostAddress();
+        ipString.append(String.format("%02x", new BigInteger(1, ipv4Address.getBytes())).toUpperCase().substring(ipString.length()-8)); //convert address to hex and provide last 4 bytes
         int bitcoinPort = 8333;
+        String recvAddr = "0100000000000000" + ipString + bitcoinPort;
         //Receiver address
-        byte[] receiverAddress = new byte[26];//"0100000000000000" + ipString + bitcoinPort;
+        byte[] receiverAddress = new byte[26];
+//        receiverAddress = HexFormat.of().parseHex(recvAddr);
         byte[] addrFrom = receiverAddress;
         Random random = new Random();
         Long nonce = random.nextLong(Integer.MAX_VALUE);;
@@ -98,6 +98,7 @@ public class PayloadGenerator {
         int startHeight = 0;
         boolean relay = true;
 
+        //Write Payload
         ByteArrayOutputStream payloadStream = new ByteArrayOutputStream();
         DataOutputStream outputStream = new DataOutputStream(payloadStream);
         outputStream.writeInt(version);
@@ -114,43 +115,15 @@ public class PayloadGenerator {
 
         byte[] payload = payloadStream.toByteArray();
 
+        //Write header and add payload for full version message
         ByteArrayOutputStream versionMessageStream = new ByteArrayOutputStream();
         DataOutputStream out = new DataOutputStream(versionMessageStream);
-        out.write(HexFormat.of().parseHex(magicNumber));
-        out.writeBytes("version");
-        out.writeInt(payload.length);
+        out.write(new byte[]{(byte) 0xF9, (byte) 0xBE, (byte) 0xB4, (byte) 0xD9});
+        out.writeBytes("version"); //write(HexFormat.of().parseHex("76657273696F6E0000000000"));//writeBytes("version");
+        out.writeInt(payload.length);//Integer.reverseBytes(payload.length));
         out.write(calculateCheckSum(payload));
         out.write(payload);
-        return versionMessageStream;
-//        byte[] addrRecv = HexFormat.of().parseHex(receiverAddress);
-        //Calculate payload length
-//        StringBuilder payload = new StringBuilder();
-//        payload.append(version);
-//        payload.append(services);
-//        payload.append(Long.toHexString(timestamp).toUpperCase());
-//        payload.append(receiverAddress);
-//
-//        payload.append(addrFrom);
-//        payload.append(nonce);
-//        payload.append(userAgent);
-//        payload.append(startHeight);
-//        payload.append(relay);
-//        int payloadLength = payload.length();
-//        StringBuilder payloadLengthCommand = new StringBuilder();
-//        for (int i = 0; i < 8-Integer.toHexString(payloadLength).length(); i++) {
-//            payloadLengthCommand.append("0");
-//        }
-//        payloadLengthCommand.append(Integer.toHexString(payloadLength));
-////        String payloadLengthCommand = Integer.toHexString(payloadLength);
-//        //Version header
-//        stringBuilder.append(magicNumber);
-//        stringBuilder.append(versionCommand);
-//        stringBuilder.append(payloadLengthCommand);
-//        stringBuilder.append(calculateCheckSum(payload.toString()));
-////        stringBuilder.append("54DED412");//calculateCheckSum(stringBuilder.toString()));
-//        //Version payload
-//        stringBuilder.append(payload);
-//        return stringBuilder.toString();
+        return versionMessageStream.toByteArray();
     }
 
     public static String generateVerackPayload() {

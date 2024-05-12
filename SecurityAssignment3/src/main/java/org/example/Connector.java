@@ -3,6 +3,7 @@ import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 import java.util.HexFormat;
 //import org.example.PayloadGenerator;
 
@@ -33,36 +34,43 @@ public class Connector {
     }
 
     public void connectToNetwork() throws IOException, InterruptedException, NoSuchAlgorithmException, CloneNotSupportedException {
-//        DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+
+        //DataOutputStream out = new DataOutputStream(socket.getOutputStream());
         OutputStream out = socket.getOutputStream();
-        ByteArrayOutputStream versionMessage = generateVersionPayload();
-        out.write(versionMessage.toByteArray());
-        out.flush();
-//        String versionHeader = versionMessage.substring(0, 25);
-//        String versionPayload = versionMessage.substring(25);
-//        out.writeBytes(versionHeader);
-//        out.writeBytes(versionPayload);
-//        out.write(HexFormat.of().parseHex(generateVersionPayload()));
+
+        //Write version message
+        byte[] versionMessage = generateVersionPayload();
+        System.out.println(Arrays.toString(versionMessage));
+        out.write(versionMessage);
 //        out.flush();
-//        System.out.println("Connected to " + socket.getInetAddress().getHostAddress());
 
         DataInputStream in = new DataInputStream(socket.getInputStream());
 //        InputStream in = socket.getInputStream();
-        byte[] versionHeaderRet = new byte[24];
-        while (in.available() == 0) {
+
+        //Receive version message
+        byte[] versionHeaderRet = new byte[versionMessage.length];
+        if/*while*/ (in.available() == 0) {
             System.out.println("Waiting for version header");
             Thread.sleep(1000);
         }
         System.out.println("Read version header");
+        byte[] header = new byte[24];
+        in.readFully(header);
+        System.out.println(Arrays.toString(header));
+//        byte[] magicNumber = in.readNBytes(4);
+//        byte[] command = in.readNBytes(12);
+//        byte[] payload = in.readNBytes(4);
+//        byte[] checkSum = in.readNBytes(4);
+//        byte[] payload = new byte[payloadLength];
+//        in.readFully(payload);
 //        int input = 0;
-        in.readFully(versionHeaderRet);
-        int a = in.readInt();
-        System.out.println(a);
+//        int a = in.readInt();
+//        System.out.println(a);
+//        in.readFully(versionHeaderRet);
+//        System.out.println(Arrays.toString(versionHeaderRet));
 //        if (input == -1) {
 //            System.out.println("No input received");
 //            return;
 //        }
-//        System.out.println(input);
-//        in.read(versionHeader);
     }
 }
