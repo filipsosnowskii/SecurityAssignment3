@@ -22,13 +22,17 @@ public class PayloadGenerator {
     public static byte[] generateVersionPayload() throws NoSuchAlgorithmException, IOException, CloneNotSupportedException {
         //Header
         String magicNumber = "F9BEB4D9";
-        String versionCommand = "76657273696F6E0000000000"; //"version" in hex format with padding
+//        String versionCommand = "76657273696F6E0000000000"; //"version" in hex format with padding
+        byte[] versionCommand = new byte[]{(byte) 0x76, (byte) 0x65, (byte) 0x72, (byte) 0x73, (byte) 0x69, (byte) 0x6F,
+                (byte) 0x6E, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00}; //76657273696F6E0000000000
         //Payload
         int version = 70016;
         long services = 1;
         long timestamp = System.currentTimeMillis() / 1000L;
         InetAddress receiverAddress = InetAddress.getLocalHost();
         InetAddress addrFrom = receiverAddress;
+        byte[] addressPadding = new byte[]{(byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+                (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0xFF, (byte) 0xFF};
         Random random = new Random();
         Long nonce = random.nextLong(Integer.MAX_VALUE);;
         String userAgent = "/Satoshi:27.0.0/"; //"";
@@ -38,22 +42,22 @@ public class PayloadGenerator {
         //Write Payload
         ByteArrayOutputStream payloadStream = new ByteArrayOutputStream();
         DataOutputStream outputStream = new DataOutputStream(payloadStream);
-        outputStream.writeInt(version);
-        outputStream.writeLong(services);
-        outputStream.writeLong(timestamp);
-        outputStream.writeLong(services);
-        outputStream.write(HexFormat.of().parseHex("00000000000000000000FFFF"));
+        outputStream.writeInt(Integer.reverseBytes(version));
+        outputStream.writeLong(Long.reverseBytes(services));
+        outputStream.writeLong(Long.reverseBytes(timestamp));
+        outputStream.writeLong(Long.reverseBytes(services));
+        outputStream.write(addressPadding); //writeBytes
         outputStream.write(receiverAddress.getAddress());
-        outputStream.writeShort(8333);
-        outputStream.writeLong(services);
-        outputStream.write(HexFormat.of().parseHex("00000000000000000000FFFF"));
+        outputStream.writeShort(Short.reverseBytes((short) 8333));
+        outputStream.writeLong(Long.reverseBytes(services));
+        outputStream.write(addressPadding); //writeBytes
         outputStream.write(addrFrom.getAddress());
-        outputStream.writeShort(8333);
-        outputStream.writeLong(nonce);
+        outputStream.writeShort(Short.reverseBytes((short) 88333));
+        outputStream.writeLong(Long.reverseBytes(nonce));
 //        outputStream.writeByte(userAgent.length());
 //        outputStream.writeBytes(userAgent);
-        outputStream.write(HexFormat.of().parseHex("00")); //userAgent set to 0
-        outputStream.writeInt(startHeight);
+        outputStream.write(new byte[]{(byte) 0x00}); //userAgent set to 0
+        outputStream.writeInt(Integer.reverseBytes(startHeight));
         outputStream.writeBoolean(relay);
 
         byte[] payload = payloadStream.toByteArray();
@@ -62,8 +66,8 @@ public class PayloadGenerator {
         ByteArrayOutputStream versionMessageStream = new ByteArrayOutputStream();
         DataOutputStream out = new DataOutputStream(versionMessageStream);
         out.write(new byte[]{(byte) 0xF9, (byte) 0xBE, (byte) 0xB4, (byte) 0xD9});
-        out.write(HexFormat.of().parseHex(versionCommand));//writeBytes("version");write("version");
-        out.writeInt(payload.length);//Integer.reverseBytes(payload.length));
+        out.write(versionCommand); //HexFormat.of().parseHex(versionCommand));//writeBytes("version");write("version");
+        out.writeInt(Integer.reverseBytes(payload.length));
         out.write(calculateCheckSum(payload));
         out.write(payload);
         return versionMessageStream.toByteArray();

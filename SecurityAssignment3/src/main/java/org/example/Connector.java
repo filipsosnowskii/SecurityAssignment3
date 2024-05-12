@@ -66,7 +66,7 @@ public class Connector {
             in.readFully(payloadLengthVer);
             in.readFully(checkSumVer);
             ByteBuffer byteBuffer = ByteBuffer.wrap(payloadLengthVer);
-            int versionPayloadLength = byteBuffer.getInt(); //Integer.parseInt(Arrays.toString(payloadLengthVer));
+            int versionPayloadLength = Integer.reverse(byteBuffer.getInt()); //Integer.parseInt(Arrays.toString(payloadLengthVer));
             System.out.println("Payload length: " + versionPayloadLength);
             if (versionPayloadLength < 0 || versionPayloadLength > 255) {
                 System.out.println("Invalid version payload length");
