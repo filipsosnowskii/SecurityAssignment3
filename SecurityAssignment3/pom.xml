@@ -26,6 +26,11 @@
             <version>RELEASE</version>
             <scope>test</scope>
         </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.apache.commons</groupId>-->
+<!--            <artifactId>commons-crypto</artifactId>-->
+<!--            <version>1.2.0</version>-->
+<!--        </dependency>-->
     </dependencies>
 
 </project>

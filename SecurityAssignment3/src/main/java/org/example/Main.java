@@ -12,12 +12,4 @@ public class Main {
             e.printStackTrace();
         }
     }
-//        try {
-//            while (true) {
-//                connector.connectToNetwork();
-//            }
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-//    }
 }

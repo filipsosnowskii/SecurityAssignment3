@@ -76,22 +76,24 @@ public class PayloadGenerator {
     public static byte[] generateVersionPayload() throws NoSuchAlgorithmException, IOException, CloneNotSupportedException {
         //Header
         String magicNumber = "F9BEB4D9";
-        String versionCommand = "76657273696F6E0000000000";
+        String versionCommand = "76657273696F6E0000000000"; //"version" in hex format with padding
         //Payload
         int version = 70015;
         long services = 1;
         long timestamp = System.currentTimeMillis() / 1000L;
         //Set receiver address
-        StringBuilder ipString = new StringBuilder();
-        ipString.append("00000000000000000000FFFF");
-        String ipv4Address = InetAddress.getLocalHost().getHostAddress();
-        ipString.append(String.format("%02x", new BigInteger(1, ipv4Address.getBytes())).toUpperCase().substring(ipString.length()-8)); //convert address to hex and provide last 4 bytes
-        int bitcoinPort = 8333;
-        String recvAddr = "0100000000000000" + ipString + bitcoinPort;
+//        StringBuilder ipString = new StringBuilder();
+//        ipString.append("00000000000000000000FFFF");
+//        String ipv4Address = InetAddress.getLocalHost().getHostAddress();
+//        ipString.append(String.format("%02x", new BigInteger(1, ipv4Address.getBytes())).toUpperCase().substring(ipString.length()-8)); //convert address to hex and provide last 4 bytes
+//        int bitcoinPort = 8333;
+//        String recvAddr = "0100000000000000" + ipString + bitcoinPort;
         //Receiver address
-        byte[] receiverAddress = new byte[26];
+        InetAddress receiverAddress = InetAddress.getLocalHost();
+//        byte[] receiverAddress = new byte[26];
 //        receiverAddress = HexFormat.of().parseHex(recvAddr);
-        byte[] addrFrom = receiverAddress;
+//        byte[] addrFrom = receiverAddress;
+        InetAddress addrFrom = receiverAddress;
         Random random = new Random();
         Long nonce = random.nextLong(Integer.MAX_VALUE);;
         String userAgent = "";
@@ -104,10 +106,15 @@ public class PayloadGenerator {
         outputStream.writeInt(version);
         outputStream.writeLong(services);
         outputStream.writeLong(timestamp);
-        outputStream.write(receiverAddress);
-        outputStream.write(addrFrom);
+        outputStream.writeLong(services);
+        outputStream.write(HexFormat.of().parseHex("00000000000000000000FFFF"));
+        outputStream.write(receiverAddress.getAddress());
+        outputStream.writeShort(8333);
+        outputStream.writeLong(services);
+        outputStream.write(HexFormat.of().parseHex("00000000000000000000FFFF"));
+        outputStream.write(addrFrom.getAddress());
+        outputStream.writeShort(8333);
         outputStream.writeLong(nonce);
-        outputStream.writeInt(startHeight);
 //        outputStream.writeByte(userAgent.length());
 //        outputStream.writeBytes(userAgent);
         outputStream.writeInt(startHeight);
@@ -119,86 +126,19 @@ public class PayloadGenerator {
         ByteArrayOutputStream versionMessageStream = new ByteArrayOutputStream();
         DataOutputStream out = new DataOutputStream(versionMessageStream);
         out.write(new byte[]{(byte) 0xF9, (byte) 0xBE, (byte) 0xB4, (byte) 0xD9});
-        out.writeBytes("version"); //write(HexFormat.of().parseHex("76657273696F6E0000000000"));//writeBytes("version");
+        out.write(HexFormat.of().parseHex(versionCommand));//writeBytes("version");write("version");
         out.writeInt(payload.length);//Integer.reverseBytes(payload.length));
         out.write(calculateCheckSum(payload));
         out.write(payload);
         return versionMessageStream.toByteArray();
     }
 
-    public static String generateVerackPayload() {
-        //TODO: Write as bytes not string
-        //TODO: Prefix with 0x? no
-        StringBuilder stringBuilder = new StringBuilder();
-        //Header
-//        String magicNumber = /*0x*/ "0xF9 0xBE 0xB4 0xD9";
-//        String verackCommand = "0x76 0x65 0x72 0x61 0x63 0x6B 0x00 0x00 0x00 0x00 0x00 0x00";
-//        String payLoadLengthCommand = "0x00 0x00 0x00 0x00";
-//        String checksumCommand = "0x5D 0xF6 0xE0 0xE2";
-        String magicNumber = /*0x*/ "F9BEB4D9";
-        String verackCommand = "76657261636B000000000000";
-        String payLoadLengthCommand = "00000000";
-        String checksumCommand = "5afcd6be".toUpperCase(); //"5DF6E0E2";
-        //Message
-//        String versionMessage = "62 EA 00 00";
-        stringBuilder.append(magicNumber);
-        stringBuilder.append(verackCommand);
-        stringBuilder.append(payLoadLengthCommand);
-        stringBuilder.append(checksumCommand);
-        return stringBuilder.toString();
-    }
-
-    public static String generateNonce() {
-        Random random = new Random();
-        int randomInt = random.nextInt(Integer.MAX_VALUE);
-        StringBuilder stringBuilder = new StringBuilder();
-        for (int i = 0; i < 8-Integer.toHexString(randomInt).length(); i++) {
-            stringBuilder.append("0");
-        }
-        stringBuilder.append(Integer.toHexString(randomInt));
-        return stringBuilder.toString();
-    }
-
     public static byte[] calculateCheckSum(byte[] bytes) throws NoSuchAlgorithmException, CloneNotSupportedException {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         byte[] hash = digest.digest(bytes);
-//        String checksum = new BigInteger(1, hash).toString(16);
-        byte[] hash2 = digest.digest(hash); //HexFormat.of().parseHex(checksum));
+        byte[] hash2 = digest.digest(hash);
         byte[] checkSum = new byte[4];
-        for (int i = 0; i < 4; i++) {
-            checkSum[i] = hash2[i];
-//            checkSum.append(Integer.toHexString(hash2[i] & 0xFF).toUpperCase());
-//            checkSum.append(String.format("%02x", hash2[i] & 0xFF).toUpperCase());
-        }
+        System.arraycopy(hash2, 0, checkSum, 0, 4);
         return checkSum;
     }
-
-    public static String calculateCheckSum(String string) throws NoSuchAlgorithmException, CloneNotSupportedException {
-        MessageDigest digest = MessageDigest.getInstance("SHA-256");
-        byte[] hash = digest.digest(HexFormat.of().parseHex(string));
-//        String checksum = new BigInteger(1, hash).toString(16);
-        byte[] hash2 = digest.digest(hash); //HexFormat.of().parseHex(checksum));
-        StringBuilder checkSum = new StringBuilder();
-        for (int i = 0; i < 4; i++) {
-            checkSum.append(Integer.toHexString(hash2[i] & 0xFF).toUpperCase());
-//            checkSum.append(String.format("%02x", hash2[i] & 0xFF).toUpperCase());
-        }
-        return checkSum.toString();
-    }
-
-//    public List<String> generateVersionPayload() {
-//        List<String> magicNumber = Arrays.asList("0x","F9","BE","B4","D9");
-//        76 65 72 73 69 6F 6E 00 00 00 00 00
-//    }
-
-//    public static byte[] convertStringToByteArray(String s, int b) {
-//        String[] splitString = s.split(" ");
-//        byte[] payload = new byte[splitString.length/b]; //TODO: or 2? 2
-//        for (int i = 0; i < splitString.length; i++) {
-////            payload[i] = (byte) Integer.parseInt(splitString[i]);
-//            payload[i] = (byte) HexFormat.of().parseHex(splitString[i]);
-//        }
-//        return payload;
-//    }
-
 }

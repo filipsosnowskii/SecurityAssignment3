@@ -1,6 +1,7 @@
 package org.example;
 import java.io.*;
 import java.net.*;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
@@ -15,8 +16,9 @@ public class Connector {
 
     //TODO: set so that it connects to specified address, another constructor maybe?
     public Connector() throws IOException {
-        socket = new Socket();
-        socket.connect(new InetSocketAddress(dnsLookup("seed.bitcoin.sipa.be")[0].getHostAddress(), 8333));
+//        socket = new Socket("151.21.128.99", 8333);
+        socket = new Socket("54.226.137.205"/*"82.96.96.40"*/, 8333);
+//        socket.connect(new InetSocketAddress(dnsLookup("seed.bitcoin.sipa.be")[0].getHostAddress(), 8333));
     }
 
     private InetAddress[] dnsLookup(String domain/*String host, int port*/) throws UnknownHostException {
@@ -34,43 +36,72 @@ public class Connector {
     }
 
     public void connectToNetwork() throws IOException, InterruptedException, NoSuchAlgorithmException, CloneNotSupportedException {
+        try {
+//            DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+            OutputStream out = socket.getOutputStream();
 
-        //DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-        OutputStream out = socket.getOutputStream();
+            //Write version message
+            byte[] versionMessage = generateVersionPayload();
+            System.out.println(Arrays.toString(versionMessage));
+            out.write(versionMessage);
+            out.flush();
+            DataInputStream in = new DataInputStream(socket.getInputStream());
+//          InputStream in = socket.getInputStream();
 
-        //Write version message
-        byte[] versionMessage = generateVersionPayload();
-        System.out.println(Arrays.toString(versionMessage));
-        out.write(versionMessage);
-//        out.flush();
+            //Receive version message
+            while (in.available() == 0) {
+                System.out.println("Waiting for version header");
+                Thread.sleep(10000);
+            }
+            System.out.println(in.available());
+            System.out.println("Read version header");
+            byte[] magicNumberRet = new byte[4];
+            byte[] command = new byte[12];
+            byte[] payloadLengthVer = new byte[4];
+            byte[] checkSumVer = new byte[4];
+            in.readFully(magicNumberRet);
+            in.readFully(command);
+            in.readFully(payloadLengthVer);
+            in.readFully(checkSumVer);
+            ByteBuffer byteBuffer = ByteBuffer.wrap(payloadLengthVer);
+            int versionPayloadLength = byteBuffer.getInt(); //Integer.parseInt(Arrays.toString(payloadLengthVer));
+            System.out.println("Payload length: " + versionPayloadLength);
+            if (versionPayloadLength < 0 || versionPayloadLength > 255) {
+                System.out.println("Invalid version payload length");
+                return;
+            }
+            //Read payload
+            byte[] payload = new byte[versionPayloadLength];
+            in.readFully(payload);
+            System.out.println("Payload: " + Arrays.toString(payload));
 
-        DataInputStream in = new DataInputStream(socket.getInputStream());
-//        InputStream in = socket.getInputStream();
+            //Read verrack
+            byte[] verrackHeader = new byte[24];
+            in.readFully(verrackHeader);
 
-        //Receive version message
-        byte[] versionHeaderRet = new byte[versionMessage.length];
-        if/*while*/ (in.available() == 0) {
-            System.out.println("Waiting for version header");
-            Thread.sleep(1000);
+            //Send verrack back
+            out.write(verrackHeader);
+            out.flush();
+
+            while (true) {
+                byte[] magicNum = new byte[4];
+                byte[] headerCommand = new byte[12];
+                byte[] headerPayloadLength = new byte[4];
+                byte[] headerCheckSumVer = new byte[4];
+                in.readFully(magicNum);
+                in.readFully(headerCommand);
+                in.readFully(headerPayloadLength);
+                in.readFully(headerCheckSumVer);
+                int headerPayloadLen = Integer.parseInt(Arrays.toString(payloadLengthVer));
+
+                //Read payload
+                byte[] payload2 = new byte[headerPayloadLen];
+                in.readFully(payload2);
+                System.out.println("Read payload");
+                System.out.println(Arrays.toString(payload2));
+            }
+        } catch (Exception e) {
+            socket.close();
         }
-        System.out.println("Read version header");
-        byte[] header = new byte[24];
-        in.readFully(header);
-        System.out.println(Arrays.toString(header));
-//        byte[] magicNumber = in.readNBytes(4);
-//        byte[] command = in.readNBytes(12);
-//        byte[] payload = in.readNBytes(4);
-//        byte[] checkSum = in.readNBytes(4);
-//        byte[] payload = new byte[payloadLength];
-//        in.readFully(payload);
-//        int input = 0;
-//        int a = in.readInt();
-//        System.out.println(a);
-//        in.readFully(versionHeaderRet);
-//        System.out.println(Arrays.toString(versionHeaderRet));
-//        if (input == -1) {
-//            System.out.println("No input received");
-//            return;
-//        }
     }
 }
