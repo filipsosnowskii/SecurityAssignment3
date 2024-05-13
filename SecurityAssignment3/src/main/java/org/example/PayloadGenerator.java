@@ -37,7 +37,7 @@ public class PayloadGenerator {
         Long nonce = random.nextLong(Integer.MAX_VALUE);;
         String userAgent = "/Satoshi:27.0.0/"; //"";
         int startHeight = 0; //843192
-        boolean relay = false;
+        boolean relay = true;
 
         //Write Payload
         ByteArrayOutputStream payloadStream = new ByteArrayOutputStream();
