@@ -123,6 +123,9 @@ public class Connector {
                 //Read payload TODO:add the logic for parsing inv messages
                 byte[] invPayload = new byte[invHeader.getPayloadLength()];
                 in.readFully(invPayload);
+
+
+
                 //send a getData message for each inv vector received
                 if("inv".equals(invHeader.getCommand())) {
                     byte[] getDataMessage = generateGetDataMessage(invPayload);
@@ -142,7 +145,10 @@ public class Connector {
                     if ("tx".equals(transactionHeader.getCommand())) {
                         parseTxMessagePayload(transactionPayload);
                     }
+                    Thread.sleep(1000);
                     //TODO:parse incoming tx and block messages
+                    //TODO: verify magic number and checksum
+                    //TODO: store remaining inv payloads until tx are parsed for each message
 
                 }
 //                if("inv".equals(invHeader.getCommand())) parseInvMessagePayload(invPayload);
