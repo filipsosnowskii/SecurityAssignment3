@@ -8,8 +8,8 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.HexFormat;
 //import org.example.PayloadGenerator;
+import static org.example.PayloadGenerator.*;
 
-import static org.example.PayloadGenerator.generateVersionPayload;
 
 public class Connector {
 
@@ -109,13 +109,12 @@ public class Connector {
             //Receive and parse payloads
             while (true) {
 
-                retries = 0;
-                while (in.available() == 0 && retries < 3) {
+                while (in.available() == 0) {
                     System.out.println("Waiting for header");
                     Thread.sleep(10000);
-                    retries++;
                 }
 
+                //TODO: Verify checksum
                 Header invHeader = new Header();
                 byte[] invHeaderBytes = new byte[24];
                 in.readFully(invHeaderBytes);
@@ -124,12 +123,29 @@ public class Connector {
                 //Read payload TODO:add the logic for parsing inv messages
                 byte[] invPayload = new byte[invHeader.getPayloadLength()];
                 in.readFully(invPayload);
-//                Header headerInv = new Header();
-//                byte[] headerInvBytes = new byte[24];
-//                System.arraycopy(invPayload, 0, headerInvBytes, 0, 24);
-//                parseAndReadHeader(headerInvBytes, headerInv);
-                System.out.println("Read payload");
-                System.out.println(Arrays.toString(invPayload));
+                //send a getData message for each inv vector received
+                if("inv".equals(invHeader.getCommand())) {
+                    byte[] getDataMessage = generateGetDataMessage(invPayload);
+                    System.out.println("Outgoing Version Message");
+                    System.out.println(Arrays.toString(getDataMessage));
+                    out.write(getDataMessage);
+                    out.flush();
+
+                    Header transactionHeader = new Header();
+                    byte[] transactionHeaderBytes = new byte[24];
+                    in.readFully(transactionHeaderBytes);
+                    parseAndReadHeader(transactionHeaderBytes, transactionHeader);
+
+                    byte[] transactionPayload = new byte[transactionHeader.getPayloadLength()];
+                    in.readFully(transactionPayload);
+                    System.out.println("Transaction payload: " + Arrays.toString(transactionPayload));
+                    if ("tx".equals(transactionHeader.getCommand())) {
+                        parseTxMessagePayload(transactionPayload);
+                    }
+                    //TODO:parse incoming tx and block messages
+
+                }
+//                if("inv".equals(invHeader.getCommand())) parseInvMessagePayload(invPayload);
             }
         } catch (Exception e) {
             socket.close();
@@ -173,7 +189,7 @@ public class Connector {
 //        byte[] commandBytes = new byte[12];
 //    }
 
-    public String convertByteArrayToHexString(byte[] byteArray) {
+    public static String convertByteArrayToHexString(byte[] byteArray) {
         StringBuilder hexString = new StringBuilder();
         for (byte b : byteArray) {
             String hex = Integer.toHexString(0xff & b);
