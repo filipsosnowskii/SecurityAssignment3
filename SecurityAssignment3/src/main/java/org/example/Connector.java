@@ -138,7 +138,7 @@ public class Connector {
 
                     byte[] transactionPayload = new byte[transactionHeader.getPayloadLength()];
                     in.readFully(transactionPayload);
-                    System.out.println("Transaction payload: " + Arrays.toString(transactionPayload));
+//                    System.out.println("Transaction payload: " + Arrays.toString(transactionPayload));
                     if ("tx".equals(transactionHeader.getCommand())) {
                         parseTxMessagePayload(transactionPayload);
                     }
