@@ -163,7 +163,7 @@ public class PayloadGenerator {
         byte txInCountFirstByte = txMessagePayload[offset];
         int txInCountLength = getVarIntLength(txInCountFirstByte);
         byte[] txInCountBytes = new byte[txInCountLength];
-        System.arraycopy(txMessagePayload, offset, txInCountBytes, 0, 1);
+        System.arraycopy(txMessagePayload, offset, txInCountBytes, 0, txInCountLength); //TODO: was 1
         long txInCount = getIntFromVarInt(txInCountBytes, txInCountLength);
         System.out.println("Number of transaction inputs: " + txInCount);
         offset += txInCountLength;
@@ -184,14 +184,15 @@ public class PayloadGenerator {
             //Get script length
             byte scriptLengthFirstByte = txMessagePayload[offset];
             int scriptLengthLength = getVarIntLength(scriptLengthFirstByte);
-            byte[] scriptLengthBytes = new byte[scriptLengthLength];
+            byte[] scriptLengthBytes = new byte[scriptLengthLength]; //TODO:copy script, ok so you are not copying the script length
+            System.arraycopy(txMessagePayload, offset, scriptLengthBytes, 0, scriptLengthLength); //TODO: verify, probably have to remove the copy from the method + print script proper
             long scriptLength = getIntFromVarInt(scriptLengthBytes, scriptLengthLength);
             System.out.println("Script length: " + scriptLength);
             byte[] scriptBytes = new byte[(int) scriptLength];
             offset += scriptLengthLength;
             System.arraycopy(txMessagePayload, offset, scriptBytes, 0, (int) scriptLength);
             byteBuffer = ByteBuffer.wrap(scriptBytes);
-            System.out.println("Script: " + new String(byteBuffer.array(), StandardCharsets.UTF_8).trim()); //use convertByteArrayToHexString instead
+            System.out.println("Script: " + convertByteArrayToHexString(scriptBytes)); //new String(byteBuffer.array(), StandardCharsets.UTF_8).trim()); //use convertByteArrayToHexString instead
             offset += scriptBytes.length;
             byte[] sequence = new byte[4];
             System.arraycopy(txMessagePayload, offset, sequence, 0, 4);
@@ -201,15 +202,21 @@ public class PayloadGenerator {
         }
 
         //Get txout count
-        byte[] txOutCountBytes;
         byte txOutCountFirstByte = txMessagePayload[offset];
         int txOutCountLength = getVarIntLength(txOutCountFirstByte);
-        txOutCountBytes = new byte[txOutCountLength];
-        System.arraycopy(txMessagePayload, offset, txOutCountBytes, 0, 1);
+        byte[] txOutCountBytes = new byte[txOutCountLength];
+        System.arraycopy(txMessagePayload, offset, txOutCountBytes, 0, txOutCountLength);
         long txOutCount = getIntFromVarInt(txOutCountBytes, txOutCountLength);
         System.out.println("Number of transaction outputs: " + txOutCount);
-
         offset += txOutCountLength;
+
+//        byte txInCountFirstByte = txMessagePayload[offset];
+//        int txInCountLength = getVarIntLength(txInCountFirstByte);
+//        byte[] txInCountBytes = new byte[txInCountLength];
+//        System.arraycopy(txMessagePayload, offset, txInCountBytes, 0, 1);
+//        long txInCount = getIntFromVarInt(txInCountBytes, txInCountLength);
+//        System.out.println("Number of transaction inputs: " + txInCount);
+//        offset += txInCountLength;
 
         //Parse txouts
         for (int i = 0; i < txOutCount; i++) {
@@ -217,14 +224,15 @@ public class PayloadGenerator {
             byte[] transactionValueBytes = new byte[8];
             System.arraycopy(txMessagePayload, offset, transactionValueBytes, 0, 8);
             offset += 8;
-            ByteBuffer byteBuffer = ByteBuffer.wrap(transactionValueBytes).order(ByteOrder.LITTLE_ENDIAN);
-            Long transactionValue = byteBuffer.getLong();
+            ByteBuffer byteBuffer = ByteBuffer.wrap(transactionValueBytes);//.order(ByteOrder.LITTLE_ENDIAN);
+            long transactionValue = Long.reverseBytes(byteBuffer.getLong());//byteBuffer.getLong(); //=0
             System.out.println("Transaction value: " + transactionValue);
 
             //pk Script
             byte pkScriptLengthFirstByte = txMessagePayload[offset];
             int pkScriptLengthLength = getVarIntLength(pkScriptLengthFirstByte);
-            byte[] pkScriptLengthBytes = new byte[pkScriptLengthLength];
+            byte[] pkScriptLengthBytes = new byte[pkScriptLengthLength]; //TODO: copy script
+            System.arraycopy(txMessagePayload, offset, pkScriptLengthBytes, 0, pkScriptLengthLength); //TODO: verify this works
             long pkScriptLength = getIntFromVarInt(pkScriptLengthBytes, pkScriptLengthLength);
             System.out.println("Script length: " + pkScriptLength);
             offset += pkScriptLengthLength;
@@ -232,13 +240,13 @@ public class PayloadGenerator {
             System.arraycopy(txMessagePayload, offset, pkScriptBytes, 0, (int) pkScriptLength);
             offset += pkScriptBytes.length;
             byteBuffer = ByteBuffer.wrap(pkScriptBytes);
-            System.out.println("Script: " + new String(byteBuffer.array(), StandardCharsets.UTF_8).trim());
+            System.out.println("Script: " + convertByteArrayToHexString(pkScriptBytes)); //new String(byteBuffer.array(), StandardCharsets.UTF_8).trim());
         }
 
         //Parse txWitnesses
         if (flagPresent) {
             System.out.println("Flag present"); //TODO: remove this line
-            byte[] lockTime = new byte[4];
+            byte[] txWitnesses = new byte[4];
         }
 
         //lock_time
