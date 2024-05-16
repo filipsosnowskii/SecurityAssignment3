@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.HexFormat;
 //import org.example.PayloadGenerator;
 import static org.example.PayloadGenerator.*;
+import static org.example.PayloadGenerator.parseTxMessagePayload;
 
 
 public class Connector {
@@ -129,27 +130,31 @@ public class Connector {
                 //send a getData message for each inv vector received
                 if("inv".equals(invHeader.getCommand())) {
                     byte[] getDataMessage = generateGetDataMessage(invPayload);
-                    System.out.println("Outgoing Version Message");
+                    System.out.println("Outgoing Inv Message"); //TODO: check this
                     System.out.println(Arrays.toString(getDataMessage));
                     out.write(getDataMessage);
                     out.flush();
 
-                    Header transactionHeader = new Header();
-                    byte[] transactionHeaderBytes = new byte[24];
-                    in.readFully(transactionHeaderBytes);
-                    parseAndReadHeader(transactionHeaderBytes, transactionHeader);
-
-                    byte[] transactionPayload = new byte[transactionHeader.getPayloadLength()];
-                    in.readFully(transactionPayload);
-//                    System.out.println("Transaction payload: " + Arrays.toString(transactionPayload));
-                    if ("tx".equals(transactionHeader.getCommand())) {
-                        parseTxMessagePayload(transactionPayload);
-                    }
-                    Thread.sleep(1000);
+//                    Header transactionHeader = new Header();
+//                    byte[] transactionHeaderBytes = new byte[24];
+//                    in.readFully(transactionHeaderBytes);
+//                    parseAndReadHeader(transactionHeaderBytes, transactionHeader);
+//
+//                    byte[] transactionPayload = new byte[transactionHeader.getPayloadLength()];
+//                    in.readFully(transactionPayload);
+////                    System.out.println("Transaction payload: " + Arrays.toString(transactionPayload));
+//                    if ("tx".equals(transactionHeader.getCommand())) {
+//                        parseTxMessagePayload(transactionPayload);
+//                    }
+//                    Thread.sleep(1000);
                     //TODO:parse incoming tx and block messages
                     //TODO: verify magic number and checksum
                     //TODO: store remaining inv payloads until tx are parsed for each message
 
+                }
+
+                if ("tx".equals(invHeader.getCommand())) {
+                    parseTxMessagePayload(invPayload);
                 }
 //                if("inv".equals(invHeader.getCommand())) parseInvMessagePayload(invPayload);
             }

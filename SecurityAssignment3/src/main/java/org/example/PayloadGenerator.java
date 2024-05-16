@@ -258,7 +258,7 @@ public class PayloadGenerator {
     }
 
     private static long getIntFromVarInt(byte[] varInt, int varIntLength) {
-        long txInCount = 0;
+        long txInCount = 0; //TODO: check if you need to copy stuff here, probably have to write some tests
         if (varIntLength == 1) {
             txInCount = Byte.toUnsignedInt(varInt[0]);
         }
