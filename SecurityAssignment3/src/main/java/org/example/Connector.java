@@ -1,13 +1,11 @@
 package org.example;
 import java.io.*;
 import java.net.*;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.charset.StandardCharsets;
-import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
-import static org.example.PayloadGenerator.*;
-import static org.example.PayloadGenerator.parseTxMessagePayload;
+
+import static org.example.HelperMethods.*;
+import static org.example.MessageGenerator.*;
+import static org.example.MessageParser.parseAndReadHeader;
+import static org.example.MessageParser.parseTxMessagePayload;
 
 
 public class Connector {
@@ -157,32 +155,5 @@ public class Connector {
         } catch (Exception e) {
             socket.close();
         }
-    }
-
-    public void parseAndReadHeader(byte[] headerBytes, Header header) {
-
-        byte[] magicNumberBytes = new byte[4];
-        byte[] commandBytes = new byte[12];
-        byte[] payloadLengthBytes = new byte[4];
-        byte[] checkSumVerBytes = new byte[4];
-
-        System.arraycopy(headerBytes, 0, magicNumberBytes, 0, 4);
-        System.arraycopy(headerBytes, 4, commandBytes, 0, 12);
-        System.arraycopy(headerBytes, 16, payloadLengthBytes, 0, 4);
-        System.arraycopy(headerBytes, 20, checkSumVerBytes, 0, 4);
-
-        System.out.println("--------------------------------------------------");
-        System.out.println("Header");
-
-        header.setMagicNumber(convertByteArrayToHexString(magicNumberBytes));
-        System.out.println("Magic number: " + header.getMagicNumber());
-        ByteBuffer byteBuffer = ByteBuffer.wrap(commandBytes);
-        header.setCommand(new String(byteBuffer.array(), StandardCharsets.UTF_8).trim());
-        System.out.println("Command String: " + header.getCommand());
-        byteBuffer = ByteBuffer.wrap(payloadLengthBytes).order(ByteOrder.LITTLE_ENDIAN);
-        header.setPayloadLength(byteBuffer.getInt());
-        System.out.println("Payload length: " + header.getPayloadLength());
-        header.setChecksum(convertByteArrayToHexString(checkSumVerBytes));
-        System.out.println("Check Sum: " + header.getChecksum());
     }
 }

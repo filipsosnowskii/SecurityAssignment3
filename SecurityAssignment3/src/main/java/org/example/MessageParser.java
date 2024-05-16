@@ -1,87 +1,44 @@
 package org.example;
 
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Random;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
 
-public class PayloadGenerator {
+import static org.example.HelperMethods.*;
+import static org.example.HelperMethods.convertByteArrayToHexString;
 
-    public static byte[] generateVersionPayload() throws NoSuchAlgorithmException, IOException {
+public class MessageParser {
 
-        //Header
-        byte[] magicNumber = new byte[]{(byte) 0xF9, (byte) 0xBE, (byte) 0xB4, (byte) 0xD9};
-        byte[] versionCommand = new byte[]{(byte) 0x76, (byte) 0x65, (byte) 0x72, (byte) 0x73, (byte) 0x69, (byte) 0x6F,
-                (byte) 0x6E, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00}; //76657273696F6E0000000000 - "version" in hex format with padding
+    public static void parseAndReadHeader(byte[] headerBytes, Header header) {
 
-        //Payload
-        int version = 70016;
-        long services = 1;
-        long timestamp = System.currentTimeMillis() / 1000L;
-        InetAddress receiverAddress = InetAddress.getLocalHost();
-        InetAddress addrFrom = receiverAddress;
-        byte[] addressPadding = new byte[]{(byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
-                (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0xFF, (byte) 0xFF};
-        Random random = new Random();
-        long nonce = random.nextLong(Integer.MAX_VALUE);;
-        String userAgent = "/Satoshi:27.0.0/"; //Ignoring this as it's not needed, can be uncommented down below
-        int startHeight = 0;
-        boolean relay = true;
+        byte[] magicNumberBytes = new byte[4];
+        byte[] commandBytes = new byte[12];
+        byte[] payloadLengthBytes = new byte[4];
+        byte[] checkSumVerBytes = new byte[4];
 
-        //Write Payload
-        ByteArrayOutputStream payloadStream = new ByteArrayOutputStream();
-        DataOutputStream outputStream = new DataOutputStream(payloadStream);
-        outputStream.writeInt(Integer.reverseBytes(version));
-        outputStream.writeLong(Long.reverseBytes(services));
-        outputStream.writeLong(Long.reverseBytes(timestamp));
-        outputStream.writeLong(Long.reverseBytes(services));
-        outputStream.write(addressPadding);
-        outputStream.write(receiverAddress.getAddress());
-        outputStream.writeShort(Short.reverseBytes((short) 8333));
-        outputStream.writeLong(Long.reverseBytes(services));
-        outputStream.write(addressPadding);
-        outputStream.write(addrFrom.getAddress());
-        outputStream.writeShort(Short.reverseBytes((short) 88333));
-        outputStream.writeLong(Long.reverseBytes(nonce));
-//        outputStream.writeByte(userAgent.length());
-//        outputStream.writeBytes(userAgent);
-        outputStream.write(new byte[]{(byte) 0x00}); //userAgent set to 0
-        outputStream.writeInt(Integer.reverseBytes(startHeight));
-        outputStream.writeBoolean(relay);
+        System.arraycopy(headerBytes, 0, magicNumberBytes, 0, 4);
+        System.arraycopy(headerBytes, 4, commandBytes, 0, 12);
+        System.arraycopy(headerBytes, 16, payloadLengthBytes, 0, 4);
+        System.arraycopy(headerBytes, 20, checkSumVerBytes, 0, 4);
 
-        byte[] payload = payloadStream.toByteArray();
+        System.out.println("--------------------------------------------------");
+        System.out.println("Header");
 
-        //Write header and add payload for full version message
-        ByteArrayOutputStream versionMessageStream = new ByteArrayOutputStream();
-        DataOutputStream out = new DataOutputStream(versionMessageStream);
-        out.write(magicNumber);
-        out.write(versionCommand);
-        out.writeInt(Integer.reverseBytes(payload.length));
-        out.write(calculateCheckSum(payload));
-        out.write(payload);
-
-        return versionMessageStream.toByteArray();
-    }
-
-    public static byte[] generateGetDataMessage(byte[] payload) throws NoSuchAlgorithmException, IOException {
-
-        byte[] getDataCommand = new byte[]{(byte) 0x67, (byte) 0x65, (byte) 0x74, (byte) 0x64, (byte) 0x61, (byte) 0x74,
-                (byte) 0x61, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00};
-
-        ByteArrayOutputStream getdataMessageStream = new ByteArrayOutputStream();
-        DataOutputStream out = new DataOutputStream(getdataMessageStream);
-        out.write(new byte[]{(byte) 0xF9, (byte) 0xBE, (byte) 0xB4, (byte) 0xD9});
-        out.write(getDataCommand);
-        out.writeInt(Integer.reverseBytes(payload.length));
-        out.write(calculateCheckSum(payload));
-        out.write(payload);
-
-        return getdataMessageStream.toByteArray();
+        header.setMagicNumber(convertByteArrayToHexString(magicNumberBytes));
+        System.out.println("Magic number: " + header.getMagicNumber());
+        ByteBuffer byteBuffer = ByteBuffer.wrap(commandBytes);
+        header.setCommand(new String(byteBuffer.array(), StandardCharsets.UTF_8).trim());
+        System.out.println("Command String: " + header.getCommand());
+        byteBuffer = ByteBuffer.wrap(payloadLengthBytes).order(ByteOrder.LITTLE_ENDIAN);
+        header.setPayloadLength(byteBuffer.getInt());
+        System.out.println("Payload length: " + header.getPayloadLength());
+        header.setChecksum(convertByteArrayToHexString(checkSumVerBytes));
+        System.out.println("Check Sum: " + header.getChecksum());
     }
 
     public static void parseTxMessagePayload(byte[] txMessagePayload) {
@@ -225,63 +182,85 @@ public class PayloadGenerator {
         return offset;
     }
 
-    public static long getIntFromVarInt(byte[] varInt, int varIntLength) {
-        long txInCount = 0;
-        if (varIntLength == 1) {
-            txInCount = Byte.toUnsignedInt(varInt[0]);
-        }
-        else if (varIntLength == 3) {
-            byte[] shortArray = new byte[2];
-            System.arraycopy(varInt, 1, shortArray, 0, 2);
-            ByteBuffer byteBuffer = ByteBuffer.wrap(shortArray).order(ByteOrder.LITTLE_ENDIAN);
-            txInCount = byteBuffer.getShort();
-        }
-        else if (varIntLength == 5) {
-            byte[] intArray = new byte[4];
-            System.arraycopy(varInt, 1, intArray, 0, 4);
-            ByteBuffer byteBuffer = ByteBuffer.wrap(intArray).order(ByteOrder.LITTLE_ENDIAN);
-            txInCount = byteBuffer.getInt();
-        }
-        else if (varIntLength == 9) {
-            byte[] longArray = new byte[8];
-            System.arraycopy(varInt, 1, longArray, 0, 8);
-            ByteBuffer byteBuffer = ByteBuffer.wrap(longArray).order(ByteOrder.LITTLE_ENDIAN);
-            txInCount = byteBuffer.getLong();
-        }
-        return txInCount;
-    }
+    //I did not receive any blocks in my testing so can't verify this works - but the parse tx command definitely does work
+    public static void parseBlockPayload(byte[] payload) {
+        System.out.println("Parsing block payload:");
 
-    public static int getVarIntLength(byte b) {
-        int length = Byte.toUnsignedInt(b);
-        if (length < 0xFD) {
-            return 1;
-        }
-        else if (length == 0xFD) {
-            return 3;
-        }
-        else if (length == 0xFE) {
-            return 5;
-        }
-        else {
-            return 9;
-        }
-    }
+        int offset = 0;
 
-    public static String convertByteArrayToHexString(byte[] byteArray) {
-        StringBuilder hexString = new StringBuilder();
-        for (byte b : byteArray) {
-            String hex = Integer.toHexString(0xff & b);
-            hexString.append(hex);
-        }
-        return hexString.toString().toUpperCase();
-    }
+        //Get version
+        byte[] version = new byte[4];
+        System.arraycopy(payload, 0, version, 0, 4);
+        ByteBuffer byteBuffer = ByteBuffer.wrap(version).order(ByteOrder.LITTLE_ENDIAN);
+        System.out.println("Block version information: " + byteBuffer.getInt());
+        offset += 4;
 
-    public static byte[] calculateCheckSum(byte[] bytes) throws NoSuchAlgorithmException {
-        MessageDigest digest = MessageDigest.getInstance("SHA-256");
-        byte[] hash = digest.digest(bytes);
-        byte[] hash2 = digest.digest(hash);
-        byte[] checkSum = new byte[4];
-        System.arraycopy(hash2, 0, checkSum, 0, 4);
-        return checkSum;
+        //Previous block
+        byte[] prevBlock  = new byte[32];
+        System.arraycopy(payload, offset, prevBlock, 0, 32);
+        System.out.println("Hash value of the previous block: " + convertByteArrayToHexString(prevBlock));
+        offset += 32;
+
+        //Merkle Root
+        byte[] merkleRoot = new byte[32];
+        System.arraycopy(payload, offset, merkleRoot, 0, 32);
+        System.out.println("Merkle tree collection hash:" + convertByteArrayToHexString(merkleRoot));
+        offset += 32;
+
+        //timestamp
+        byte[] timestamp = new byte[4];
+        System.arraycopy(payload, offset, timestamp, 0, 4);
+        String timestampString = convertByteArrayToHexString(timestamp);
+        long timestampValue = Long.parseLong(timestampString);
+
+        //Convert to human-readable time
+        LocalDateTime localDateTime = LocalDateTime.ofInstant(Instant.ofEpochSecond(timestampValue), ZoneId.systemDefault());
+        DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM);
+        String humanReadableTimestamp = localDateTime.format(formatter);
+        System.out.println("Timestamp: " + humanReadableTimestamp);
+
+        offset += 4;
+
+        //bits
+        byte[] bits = new byte[4];
+        System.arraycopy(payload, offset, bits, 0, 4);
+        String bitsString = convertByteArrayToHexString(bits);
+        long bitsValue = Long.parseLong(bitsString);
+        System.out.println("Difficulty target: " + bitsValue);
+        offset += 4;
+
+        //nonce
+        byte[] nonce = new byte[4];
+        System.arraycopy(payload, offset, nonce, 0, 4);
+        String nonceString = convertByteArrayToHexString(nonce);
+        long nonceValue = Long.parseLong(nonceString);
+        System.out.println("Nonce: " + nonceValue);
+        offset += 4;
+
+        //tx count
+        byte txCountFirstByte = payload[offset];
+        int txCountLength = getVarIntLength(txCountFirstByte);
+        byte[] txCountBytes = new byte[txCountLength];
+        System.arraycopy(payload, offset, txCountBytes, 0, txCountLength);
+        long txCount = getIntFromVarInt(txCountBytes, txCountLength);
+        System.out.println("Tx count in block: " + txCount);
+        offset += txCountLength;
+
+        byte[] remainingBytes = new byte[payload.length - offset];
+        System.arraycopy(payload, offset, remainingBytes, 0, payload.length - offset);
+
+        offset = 0; //Reset offset
+
+        //Parse tx commands
+        System.out.println("Parsing tx commands in block:");
+        for (int i = 0; i < txCountLength; i++) {
+            Header header = new Header();
+            parseAndReadHeader(remainingBytes, header);
+            byte[] txPayload = new byte[header.getPayloadLength()];
+            System.arraycopy(remainingBytes, offset, txPayload, 0, remainingBytes.length);
+            parseTxMessagePayload(txPayload);
+            offset += txPayload.length;
+        }
+
     }
 }

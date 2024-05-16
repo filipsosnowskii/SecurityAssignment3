@@ -6,10 +6,10 @@ import org.junit.jupiter.api.Test;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 
+import static org.example.HelperMethods.calculateCheckSum;
 import static org.junit.Assert.*;
-import static org.example.PayloadGenerator.calculateCheckSum;
 
-public class PayloadGeneratorTest {
+public class MessageGeneratorTest {
 
     @Test
     public void testCheckSum() throws NoSuchAlgorithmException, CloneNotSupportedException {
