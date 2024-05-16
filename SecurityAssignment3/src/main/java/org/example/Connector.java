@@ -4,8 +4,7 @@ import java.net.*;
 
 import static org.example.HelperMethods.*;
 import static org.example.MessageGenerator.*;
-import static org.example.MessageParser.parseAndReadHeader;
-import static org.example.MessageParser.parseTxMessagePayload;
+import static org.example.MessageParser.*;
 
 
 public class Connector {
@@ -150,7 +149,9 @@ public class Connector {
                     parseTxMessagePayload(invPayload);
                 }
 
-                //TODO:Parse block messages
+                if ("block".equals(invHeader.getCommand())) {
+                    parseBlockPayload(invPayload);
+                }
             }
         } catch (Exception e) {
             socket.close();
