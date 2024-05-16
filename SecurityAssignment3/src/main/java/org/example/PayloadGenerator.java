@@ -6,21 +6,19 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Random;
 
-import static org.example.Connector.convertByteArrayToHexString;
-
 public class PayloadGenerator {
 
-    public static byte[] generateVersionPayload() throws NoSuchAlgorithmException, IOException, CloneNotSupportedException {
+    public static byte[] generateVersionPayload() throws NoSuchAlgorithmException, IOException {
+
         //Header
-        String magicNumber = "F9BEB4D9";
-//        String versionCommand = "76657273696F6E0000000000"; //"version" in hex format with padding
+        byte[] magicNumber = new byte[]{(byte) 0xF9, (byte) 0xBE, (byte) 0xB4, (byte) 0xD9};
         byte[] versionCommand = new byte[]{(byte) 0x76, (byte) 0x65, (byte) 0x72, (byte) 0x73, (byte) 0x69, (byte) 0x6F,
-                (byte) 0x6E, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00}; //76657273696F6E0000000000
+                (byte) 0x6E, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00}; //76657273696F6E0000000000 - "version" in hex format with padding
+
         //Payload
         int version = 70016;
         long services = 1;
@@ -30,9 +28,9 @@ public class PayloadGenerator {
         byte[] addressPadding = new byte[]{(byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
                 (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0xFF, (byte) 0xFF};
         Random random = new Random();
-        Long nonce = random.nextLong(Integer.MAX_VALUE);;
-        String userAgent = "/Satoshi:27.0.0/"; //"";
-        int startHeight = 0; //843192
+        long nonce = random.nextLong(Integer.MAX_VALUE);;
+        String userAgent = "/Satoshi:27.0.0/"; //Ignoring this as it's not needed, can be uncommented down below
+        int startHeight = 0;
         boolean relay = true;
 
         //Write Payload
@@ -42,11 +40,11 @@ public class PayloadGenerator {
         outputStream.writeLong(Long.reverseBytes(services));
         outputStream.writeLong(Long.reverseBytes(timestamp));
         outputStream.writeLong(Long.reverseBytes(services));
-        outputStream.write(addressPadding); //writeBytes
+        outputStream.write(addressPadding);
         outputStream.write(receiverAddress.getAddress());
         outputStream.writeShort(Short.reverseBytes((short) 8333));
         outputStream.writeLong(Long.reverseBytes(services));
-        outputStream.write(addressPadding); //writeBytes
+        outputStream.write(addressPadding);
         outputStream.write(addrFrom.getAddress());
         outputStream.writeShort(Short.reverseBytes((short) 88333));
         outputStream.writeLong(Long.reverseBytes(nonce));
@@ -61,67 +59,16 @@ public class PayloadGenerator {
         //Write header and add payload for full version message
         ByteArrayOutputStream versionMessageStream = new ByteArrayOutputStream();
         DataOutputStream out = new DataOutputStream(versionMessageStream);
-        out.write(new byte[]{(byte) 0xF9, (byte) 0xBE, (byte) 0xB4, (byte) 0xD9});
-        out.write(versionCommand); //HexFormat.of().parseHex(versionCommand));//writeBytes("version");write("version");
+        out.write(magicNumber);
+        out.write(versionCommand);
         out.writeInt(Integer.reverseBytes(payload.length));
         out.write(calculateCheckSum(payload));
         out.write(payload);
+
         return versionMessageStream.toByteArray();
     }
 
-    public static void parseInvMessagePayload(byte[] invMessagePayload) throws InterruptedException {
-//        //Determine var_int length
-        int storageLength = 1;
-////        String firstByteInHex = String.format("%02x", Byte.parseByte(String.valueOf(invMessagePayload[0])));
-//        String firstByteInHex = Integer.toHexString(0xff & invMessagePayload[0]);
-//        if (firstByteInHex.startsWith("FD")) {
-//            storageLength = 3;
-//        }
-//        if (firstByteInHex.startsWith("FE")) {
-//            storageLength = 5;
-//        }
-//        if (firstByteInHex.startsWith("FF")) {
-//            storageLength = 9;
-//        }
-//        byte[] numberOfInvEntriesBytes = new byte[storageLength];
-//        for (int i = 1; i < storageLength; i++) {
-//            numberOfInvEntriesBytes[i-1] = invMessagePayload[i];
-//        }
-//        ByteBuffer byteBuffer = ByteBuffer.wrap(numberOfInvEntriesBytes);
-        long numberOfInvEntries = invMessagePayload.length-1;//0;
-//        if (storageLength == 3) {
-//            numberOfInvEntries = byteBuffer.getShort();
-//        }
-//        if (storageLength == 5) {
-//            numberOfInvEntries = byteBuffer.getInt();
-//        }
-//        if (storageLength == 9) {
-//            numberOfInvEntries = byteBuffer.getLong();
-//        }
-        System.out.println("Number of of inventory entries: " + numberOfInvEntries);
-        //Parse Inv vectors
-        for (int i = storageLength; i < numberOfInvEntries; i+=36) {
-            if (i>=invMessagePayload.length) {
-                System.out.println("End of payload reached.");
-                System.out.println("-------------------------");
-            }
-            byte[] type = new byte[4];
-            byte[] hash = new byte[32];
-            System.arraycopy(invMessagePayload, i, type, 0, 4);
-            System.arraycopy(invMessagePayload, i+4, hash, 0, 32);
-            ByteBuffer byteBuffer = ByteBuffer.wrap(type).order(ByteOrder.LITTLE_ENDIAN);
-            int typeInt = byteBuffer.getInt();
-            byteBuffer = ByteBuffer.wrap(hash);
-            String hashString = convertByteArrayToHexString(hash); //new String(byteBuffer.array(), StandardCharsets.UTF_8).trim();
-            System.out.println("Next event:");
-            System.out.println("Object type: " + typeInt);
-            System.out.println("Hash of the object : " + hashString);
-            Thread.sleep(100);
-            //TODO: ask for block info
-        }
-    }
-
-    public static byte[] generateGetDataMessage(byte[] payload) throws NoSuchAlgorithmException, IOException, CloneNotSupportedException {
+    public static byte[] generateGetDataMessage(byte[] payload) throws NoSuchAlgorithmException, IOException {
 
         byte[] getDataCommand = new byte[]{(byte) 0x67, (byte) 0x65, (byte) 0x74, (byte) 0x64, (byte) 0x61, (byte) 0x74,
                 (byte) 0x61, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00};
@@ -137,7 +84,7 @@ public class PayloadGenerator {
         return getdataMessageStream.toByteArray();
     }
 
-    public static void parseTxMessagePayload(byte[] txMessagePayload) throws NoSuchAlgorithmException, IOException, CloneNotSupportedException {
+    public static void parseTxMessagePayload(byte[] txMessagePayload) {
         System.out.println("Parsing tx payload:");
 
         int offset = 0;
@@ -163,42 +110,14 @@ public class PayloadGenerator {
         byte txInCountFirstByte = txMessagePayload[offset];
         int txInCountLength = getVarIntLength(txInCountFirstByte);
         byte[] txInCountBytes = new byte[txInCountLength];
-        System.arraycopy(txMessagePayload, offset, txInCountBytes, 0, txInCountLength); //TODO: was 1
+        System.arraycopy(txMessagePayload, offset, txInCountBytes, 0, txInCountLength);
         long txInCount = getIntFromVarInt(txInCountBytes, txInCountLength);
         System.out.println("Number of transaction inputs: " + txInCount);
         offset += txInCountLength;
 
         //Parse txins
         for (int i = 0; i < txInCount; i++) {
-            //Parse outpoint
-            byte[] hash = new byte[32];
-            byte[] index = new byte[4];
-            System.arraycopy(txMessagePayload, offset, hash, 0, 32);
-            offset += 32;
-            System.arraycopy(txMessagePayload, offset, index, 0, 4);
-            offset += 4;
-            System.out.println("Hash of the previous transaction: " + convertByteArrayToHexString(hash));
-            ByteBuffer byteBuffer = ByteBuffer.wrap(index).order(ByteOrder.LITTLE_ENDIAN);
-            System.out.println("Index of the previous transaction: " + byteBuffer.getInt());
-
-            //Get script length
-            byte scriptLengthFirstByte = txMessagePayload[offset];
-            int scriptLengthLength = getVarIntLength(scriptLengthFirstByte);
-            byte[] scriptLengthBytes = new byte[scriptLengthLength]; //TODO:copy script, ok so you are not copying the script length
-            System.arraycopy(txMessagePayload, offset, scriptLengthBytes, 0, scriptLengthLength); //TODO: verify, probably have to remove the copy from the method + print script proper
-            long scriptLength = getIntFromVarInt(scriptLengthBytes, scriptLengthLength);
-            System.out.println("Script length: " + scriptLength);
-            byte[] scriptBytes = new byte[(int) scriptLength];
-            offset += scriptLengthLength;
-            System.arraycopy(txMessagePayload, offset, scriptBytes, 0, (int) scriptLength);
-            byteBuffer = ByteBuffer.wrap(scriptBytes);
-            System.out.println("Script: " + convertByteArrayToHexString(scriptBytes)); //new String(byteBuffer.array(), StandardCharsets.UTF_8).trim()); //use convertByteArrayToHexString instead
-            offset += scriptBytes.length;
-            byte[] sequence = new byte[4];
-            System.arraycopy(txMessagePayload, offset, sequence, 0, 4);
-            byteBuffer = ByteBuffer.wrap(sequence).order(ByteOrder.LITTLE_ENDIAN);
-            System.out.println("Sequence: " + byteBuffer.getInt()); //TODO: should be hex?
-            offset += 4;
+            offset = parseTxIn(txMessagePayload, offset);
         }
 
         //Get txout count
@@ -210,43 +129,37 @@ public class PayloadGenerator {
         System.out.println("Number of transaction outputs: " + txOutCount);
         offset += txOutCountLength;
 
-//        byte txInCountFirstByte = txMessagePayload[offset];
-//        int txInCountLength = getVarIntLength(txInCountFirstByte);
-//        byte[] txInCountBytes = new byte[txInCountLength];
-//        System.arraycopy(txMessagePayload, offset, txInCountBytes, 0, 1);
-//        long txInCount = getIntFromVarInt(txInCountBytes, txInCountLength);
-//        System.out.println("Number of transaction inputs: " + txInCount);
-//        offset += txInCountLength;
-
         //Parse txouts
         for (int i = 0; i < txOutCount; i++) {
-            //Transaction value
-            byte[] transactionValueBytes = new byte[8];
-            System.arraycopy(txMessagePayload, offset, transactionValueBytes, 0, 8);
-            offset += 8;
-            ByteBuffer byteBuffer = ByteBuffer.wrap(transactionValueBytes);//.order(ByteOrder.LITTLE_ENDIAN);
-            long transactionValue = Long.reverseBytes(byteBuffer.getLong());//byteBuffer.getLong(); //=0
-            System.out.println("Transaction value: " + transactionValue);
-
-            //pk Script
-            byte pkScriptLengthFirstByte = txMessagePayload[offset];
-            int pkScriptLengthLength = getVarIntLength(pkScriptLengthFirstByte);
-            byte[] pkScriptLengthBytes = new byte[pkScriptLengthLength]; //TODO: copy script
-            System.arraycopy(txMessagePayload, offset, pkScriptLengthBytes, 0, pkScriptLengthLength); //TODO: verify this works
-            long pkScriptLength = getIntFromVarInt(pkScriptLengthBytes, pkScriptLengthLength);
-            System.out.println("Script length: " + pkScriptLength);
-            offset += pkScriptLengthLength;
-            byte[] pkScriptBytes = new byte[(int) pkScriptLength];
-            System.arraycopy(txMessagePayload, offset, pkScriptBytes, 0, (int) pkScriptLength);
-            offset += pkScriptBytes.length;
-            byteBuffer = ByteBuffer.wrap(pkScriptBytes);
-            System.out.println("Script: " + convertByteArrayToHexString(pkScriptBytes)); //new String(byteBuffer.array(), StandardCharsets.UTF_8).trim());
+            offset = parseTxOut(txMessagePayload, offset);
         }
 
-        //Parse txWitnesses
+        //Parse txWitnesses - data structure found at
+        //https://bitcoin.stackexchange.com/questions/68924/complete-definition-of-tx-witness-data-structure-used-in-tx-data-structure
+        //Haven't encountered any non-empty witness lists in my testing
         if (flagPresent) {
-            System.out.println("Flag present"); //TODO: remove this line
-            byte[] txWitnesses = new byte[4];
+
+            System.out.println("Witnesses present");
+
+            //Get witness component count
+            byte txWitnessFirstByte = txMessagePayload[offset];
+            int txWitnessLength = getVarIntLength(txWitnessFirstByte);
+            byte[] txWitnessBytes = new byte[txWitnessLength];
+            System.arraycopy(txMessagePayload, offset, txWitnessBytes, 0, txWitnessLength);
+            long txWitnessCount = getIntFromVarInt(txWitnessBytes, txWitnessLength);
+            System.out.println("Number of witness components: " + txWitnessCount);
+            offset += txWitnessLength;
+
+            //Go through witness components, just get length to add to offset and ignore it
+            for (int i = 0; i < txWitnessCount; i++) {
+                byte witnessComponentFirstByte = txMessagePayload[offset];
+                int witnessComponentLengthLength = getVarIntLength(witnessComponentFirstByte);
+                byte[] witnessComponentBytes = new byte[witnessComponentLengthLength];
+                System.arraycopy(txMessagePayload, offset, witnessComponentBytes, 0, witnessComponentLengthLength);
+                long witnessComponentLength = getIntFromVarInt(witnessComponentBytes, witnessComponentLengthLength);
+                offset += witnessComponentLengthLength;
+                offset += (int) witnessComponentLength;
+            }
         }
 
         //lock_time
@@ -257,8 +170,63 @@ public class PayloadGenerator {
         System.out.println("Lock time: " + lockTime);
     }
 
-    private static long getIntFromVarInt(byte[] varInt, int varIntLength) {
-        long txInCount = 0; //TODO: check if you need to copy stuff here, probably have to write some tests
+    private static int parseTxOut(byte[] txMessagePayload, int offset) {
+        //Transaction value
+        byte[] transactionValueBytes = new byte[8];
+        System.arraycopy(txMessagePayload, offset, transactionValueBytes, 0, 8);
+        offset += 8;
+        ByteBuffer byteBuffer = ByteBuffer.wrap(transactionValueBytes).order(ByteOrder.LITTLE_ENDIAN);
+        long transactionValue = byteBuffer.getLong();
+        System.out.println("Transaction value: " + transactionValue);
+
+        //pk Script
+        byte pkScriptLengthFirstByte = txMessagePayload[offset];
+        int pkScriptLengthLength = getVarIntLength(pkScriptLengthFirstByte);
+        byte[] pkScriptLengthBytes = new byte[pkScriptLengthLength];
+        System.arraycopy(txMessagePayload, offset, pkScriptLengthBytes, 0, pkScriptLengthLength);
+        long pkScriptLength = getIntFromVarInt(pkScriptLengthBytes, pkScriptLengthLength);
+        System.out.println("Script length: " + pkScriptLength);
+        offset += pkScriptLengthLength;
+        byte[] pkScriptBytes = new byte[(int) pkScriptLength];
+        System.arraycopy(txMessagePayload, offset, pkScriptBytes, 0, (int) pkScriptLength);
+        offset += pkScriptBytes.length;
+        System.out.println("Script: " + convertByteArrayToHexString(pkScriptBytes));
+        return offset;
+    }
+
+    private static int parseTxIn(byte[] txMessagePayload, int offset) {
+        //Parse outpoint
+        byte[] hash = new byte[32];
+        byte[] index = new byte[4];
+        System.arraycopy(txMessagePayload, offset, hash, 0, 32);
+        offset += 32;
+        System.arraycopy(txMessagePayload, offset, index, 0, 4);
+        offset += 4;
+        System.out.println("Hash of the previous transaction: " + convertByteArrayToHexString(hash));
+        ByteBuffer byteBuffer = ByteBuffer.wrap(index).order(ByteOrder.LITTLE_ENDIAN);
+        System.out.println("Index of the previous transaction: " + byteBuffer.getInt());
+
+        //Get script length
+        byte scriptLengthFirstByte = txMessagePayload[offset];
+        int scriptLengthLength = getVarIntLength(scriptLengthFirstByte);
+        byte[] scriptLengthBytes = new byte[scriptLengthLength];
+        System.arraycopy(txMessagePayload, offset, scriptLengthBytes, 0, scriptLengthLength);
+        long scriptLength = getIntFromVarInt(scriptLengthBytes, scriptLengthLength);
+        System.out.println("Script length: " + scriptLength);
+        byte[] scriptBytes = new byte[(int) scriptLength];
+        offset += scriptLengthLength;
+        System.arraycopy(txMessagePayload, offset, scriptBytes, 0, (int) scriptLength);
+        System.out.println("Script: " + convertByteArrayToHexString(scriptBytes));
+        offset += scriptBytes.length;
+        byte[] sequence = new byte[4];
+        System.arraycopy(txMessagePayload, offset, sequence, 0, 4);
+        System.out.println("Sequence: " + convertByteArrayToHexString(sequence));
+        offset += 4;
+        return offset;
+    }
+
+    public static long getIntFromVarInt(byte[] varInt, int varIntLength) {
+        long txInCount = 0;
         if (varIntLength == 1) {
             txInCount = Byte.toUnsignedInt(varInt[0]);
         }
@@ -285,8 +253,6 @@ public class PayloadGenerator {
 
     public static int getVarIntLength(byte b) {
         int length = Byte.toUnsignedInt(b);
-        //TODO: is this better?
-        //Integer.toHexString(0xff & b);
         if (length < 0xFD) {
             return 1;
         }
@@ -301,12 +267,16 @@ public class PayloadGenerator {
         }
     }
 
-    public static void parseOutPoint() {
-        //TODO
-
+    public static String convertByteArrayToHexString(byte[] byteArray) {
+        StringBuilder hexString = new StringBuilder();
+        for (byte b : byteArray) {
+            String hex = Integer.toHexString(0xff & b);
+            hexString.append(hex);
+        }
+        return hexString.toString().toUpperCase();
     }
 
-    public static byte[] calculateCheckSum(byte[] bytes) throws NoSuchAlgorithmException, CloneNotSupportedException {
+    public static byte[] calculateCheckSum(byte[] bytes) throws NoSuchAlgorithmException {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         byte[] hash = digest.digest(bytes);
         byte[] hash2 = digest.digest(hash);

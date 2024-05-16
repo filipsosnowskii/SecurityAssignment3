@@ -6,8 +6,6 @@ import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
-import java.util.HexFormat;
-//import org.example.PayloadGenerator;
 import static org.example.PayloadGenerator.*;
 import static org.example.PayloadGenerator.parseTxMessagePayload;
 
@@ -16,76 +14,68 @@ public class Connector {
 
     Socket socket;
 
-    //TODO: set so that it connects to specified address, another constructor maybe?
     public Connector() throws IOException {
         socket = new Socket("151.21.128.99", 8333);
-//        socket = new Socket("54.226.137.205"/*"82.96.96.40"*/, 8333);
-//        socket.connect(new InetSocketAddress(dnsLookup("seed.bitcoin.sipa.be")[0].getHostAddress(), 8333));
+//        socket.connect(new InetSocketAddress(dnsLookup("seed.bitcoin.sipa.be")[0].getHostAddress(), 8333)); //Alternative way of connecting to a node
     }
 
-    private InetAddress[] dnsLookup(String domain/*String host, int port*/) throws UnknownHostException {
-//        String domain = "seed.bitcoin.sipa.be";
-//        try {
-//        InetAddress[] addresses = InetAddress.getAllByName(domain);
+    private InetAddress[] dnsLookup(String domain) throws UnknownHostException {
         return InetAddress.getAllByName(domain);
-
-//            for (InetAddress address : addresses) {
-//                System.out.println(address.getHostAddress());
-//            }
-//        } catch (UnknownHostException e) {}
-//    }
-
     }
 
-    public void connectToNetwork() throws IOException, InterruptedException, NoSuchAlgorithmException, CloneNotSupportedException {
+    public void connectToNetwork() throws IOException {
         try {
-//            DataOutputStream out = new DataOutputStream(socket.getOutputStream());
             OutputStream out = socket.getOutputStream();
 
             //Write version message
             byte[] versionMessage = generateVersionPayload();
-            System.out.println("Outgoing Version Message");
-            System.out.println(Arrays.toString(versionMessage));
+            System.out.println("Sending Version Message");
             out.write(versionMessage);
 //            out.flush();
 
             //Retrieve incoming data
             DataInputStream in = new DataInputStream(socket.getInputStream());
+
+            //Wait for response
             int retries = 0;
             while (in.available() == 0 && retries < 3) {
                 System.out.println("Waiting for version header");
-                Thread.sleep(3000);
+                Thread.sleep(10000);
                 retries++;
             }
 
-            //TODO: Handle no data available
+            if (in.available() == 0) {
+                System.out.println("No response from node, exiting program");
+                return;
+            }
+
             //Receive version message back
-            System.out.println("Incoming message size " + in.available());
-            System.out.println("Read version header");
+            System.out.println("Read incoming version header");
             byte[] versionHeaderBytes = new byte[24];
             in.readFully(versionHeaderBytes);
             Header versionHeader = new Header();
             parseAndReadHeader(versionHeaderBytes, versionHeader);
 
-//            if (versionPayloadLength < 0 || versionPayloadLength > 255) {
-//                System.out.println("Invalid version payload length");
-//                return;
-//            }
+            //Verify magic number
+            if (!"F9BEB4D9".equals(versionHeader.getMagicNumber())) {
+                System.out.println("Invalid magic number for version header, exiting program");
+                return;
+            }
 
             //Read payload
             byte[] payload = new byte[versionHeader.getPayloadLength()];
             in.readFully(payload);
-            System.out.println("Payload: " + Arrays.toString(payload));
 
-//            System.out.println(in.available());
-//            while (in.available() == 0) {
-//                System.out.println("Waiting for version header");
-//                Thread.sleep(3000);
-//                retries++;
-//            }
+            System.out.println("--------------------------------------------------");
+            //Verify checksum
+            if (!versionHeader.getChecksum().equals(convertByteArrayToHexString(calculateCheckSum(payload)))) {
+                System.out.println("Invalid checksum for version payload, exiting program");
+                return;
+            }
+
+            System.out.println("Magic number and checksum verified for version message");
 
             //Get verack header
-            //TODO: add code to handle payloads in case one gets sent before verack is received (shouldn't happen though)
             Header header = new Header();
             byte[] verackHeader = new byte[24];
             while (!"verack".equals(header.getCommand())) {
@@ -93,70 +83,76 @@ public class Connector {
                 parseAndReadHeader(verackHeader, header);
             }
 
-//            //Parse remaining headers
-//            while (in.available() > 0) {
-//                Header miscHeader = new Header();
-//                byte[] miscHeaderBytes = new byte[24];
-//                in.readFully(miscHeaderBytes);
-//                parseAndReadHeader(miscHeaderBytes, miscHeader);
-//            }
+            System.out.println("--------------------------------------------------");
+
+            if (!"F9BEB4D9".equals(versionHeader.getMagicNumber())) {
+                System.out.println("Invalid magic number for verack header, exiting program");
+                return;
+            }
+
+            System.out.println("Magic number verified for verack header");
 
             //Send verack back
             out.write(verackHeader);
 //            out.flush();
 
-            //TODO: parse sendcmpct
-
-            //Receive and parse payloads
+            //Receive and parse incoming events indefinitely
             while (true) {
 
+                //wait for event
                 while (in.available() == 0) {
                     System.out.println("Waiting for header");
                     Thread.sleep(10000);
                 }
 
-                //TODO: Verify checksum
                 Header invHeader = new Header();
                 byte[] invHeaderBytes = new byte[24];
                 in.readFully(invHeaderBytes);
                 parseAndReadHeader(invHeaderBytes, invHeader);
 
-                //Read payload TODO:add the logic for parsing inv messages
+                //Read payload
                 byte[] invPayload = new byte[invHeader.getPayloadLength()];
                 in.readFully(invPayload);
 
+                //Verify magic number
+                if (!"F9BEB4D9".equals(invHeader.getMagicNumber())) {
+                    System.out.println("Invalid magic number for event, continuing to next event");
+                    System.out.println("--------------------------------------------------");
+                    continue;
+                }
+
+                //Verify checksum
+                if (!invHeader.getChecksum().equals(convertByteArrayToHexString(calculateCheckSum(invPayload)))) {
+                    System.out.println("Invalid checksum for event, continuing to next event");
+                    System.out.println("--------------------------------------------------");
+                    continue;
+                }
 
 
                 //send a getData message for each inv vector received
                 if("inv".equals(invHeader.getCommand())) {
+
+                    //Get number of inventory vectors
+                    byte invVarIntFirstByte = invPayload[0];
+                    int invVarIntLength = getVarIntLength(invVarIntFirstByte);
+                    byte[] invVarIntBytes = new byte[invVarIntLength];
+                    System.arraycopy(invPayload, 0, invVarIntBytes, 0, invVarIntLength);
+                    long invVarCount = getIntFromVarInt(invVarIntBytes, invVarIntLength);
+                    System.out.println("Number of inventory entries: " + invVarCount);
+
+
                     byte[] getDataMessage = generateGetDataMessage(invPayload);
-                    System.out.println("Outgoing Inv Message"); //TODO: check this
-                    System.out.println(Arrays.toString(getDataMessage));
+                    System.out.println("--------------------------------------------------");
+                    System.out.println("Sending getData Message");
                     out.write(getDataMessage);
                     out.flush();
-
-//                    Header transactionHeader = new Header();
-//                    byte[] transactionHeaderBytes = new byte[24];
-//                    in.readFully(transactionHeaderBytes);
-//                    parseAndReadHeader(transactionHeaderBytes, transactionHeader);
-//
-//                    byte[] transactionPayload = new byte[transactionHeader.getPayloadLength()];
-//                    in.readFully(transactionPayload);
-////                    System.out.println("Transaction payload: " + Arrays.toString(transactionPayload));
-//                    if ("tx".equals(transactionHeader.getCommand())) {
-//                        parseTxMessagePayload(transactionPayload);
-//                    }
-//                    Thread.sleep(1000);
-                    //TODO:parse incoming tx and block messages
-                    //TODO: verify magic number and checksum
-                    //TODO: store remaining inv payloads until tx are parsed for each message
-
                 }
 
                 if ("tx".equals(invHeader.getCommand())) {
                     parseTxMessagePayload(invPayload);
                 }
-//                if("inv".equals(invHeader.getCommand())) parseInvMessagePayload(invPayload);
+
+                //TODO:Parse block messages
             }
         } catch (Exception e) {
             socket.close();
@@ -179,33 +175,14 @@ public class Connector {
         System.out.println("Header");
 
         header.setMagicNumber(convertByteArrayToHexString(magicNumberBytes));
-//        if (!"F9BEB4D9".equals(header.getMagicNumber())) {
-//            System.out.println("Magic number " + header.getMagicNumber() + " not equal to F9BEB4D9, ignoring header");
-//            return;
-//        }
         System.out.println("Magic number: " + header.getMagicNumber());
         ByteBuffer byteBuffer = ByteBuffer.wrap(commandBytes);
         header.setCommand(new String(byteBuffer.array(), StandardCharsets.UTF_8).trim());
         System.out.println("Command String: " + header.getCommand());
-        //TODO: int getting read wrong
         byteBuffer = ByteBuffer.wrap(payloadLengthBytes).order(ByteOrder.LITTLE_ENDIAN);
         header.setPayloadLength(byteBuffer.getInt());
         System.out.println("Payload length: " + header.getPayloadLength());
         header.setChecksum(convertByteArrayToHexString(checkSumVerBytes));
         System.out.println("Check Sum: " + header.getChecksum());
-    }
-
-//    public void parsesendcmpctMessage(byte[] sendcmpctBytes) {
-//        byte[] magicNumberBytes = new byte[4];
-//        byte[] commandBytes = new byte[12];
-//    }
-
-    public static String convertByteArrayToHexString(byte[] byteArray) {
-        StringBuilder hexString = new StringBuilder();
-        for (byte b : byteArray) {
-            String hex = Integer.toHexString(0xff & b);
-            hexString.append(hex);
-        }
-        return hexString.toString().toUpperCase();
     }
 }
