@@ -13,7 +13,9 @@ public class Connector {
 
     public Connector() throws IOException {
         socket = new Socket("151.21.128.99", 8333);
-//        socket.connect(new InetSocketAddress(dnsLookup("seed.bitcoin.sipa.be")[0].getHostAddress(), 8333)); //Alternative way of connecting to a node
+        //Alternative way of connecting to a node - can use this if the above socket doesn't work
+//        socket = new Socket();
+//        socket.connect(new InetSocketAddress(dnsLookup("seed.bitcoin.sipa.be")[0].getHostAddress(), 8333));
     }
 
     private InetAddress[] dnsLookup(String domain) throws UnknownHostException {
@@ -149,6 +151,7 @@ public class Connector {
                     parseTxMessagePayload(invPayload);
                 }
 
+                //I don't think the getData messages I'm sending receive blocks back - wrote the code anyway
                 if ("block".equals(invHeader.getCommand())) {
                     parseBlockPayload(invPayload);
                 }

@@ -74,6 +74,7 @@ public class MessageParser {
 
         //Parse txins
         for (int i = 0; i < txInCount; i++) {
+            System.out.println("---------- Transaction Input " + (i+1));
             offset = parseTxIn(txMessagePayload, offset);
         }
 
@@ -88,6 +89,7 @@ public class MessageParser {
 
         //Parse txouts
         for (int i = 0; i < txOutCount; i++) {
+            System.out.println("---------- Transaction Output " + (i+1));
             offset = parseTxOut(txMessagePayload, offset);
         }
 
