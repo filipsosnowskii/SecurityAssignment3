@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.security.NoSuchAlgorithmException;
 import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 
 import static org.example.HelperMethods.calculateCheckSum;
 
@@ -26,8 +27,7 @@ public class MessageGenerator {
         InetAddress addrFrom = receiverAddress;
         byte[] addressPadding = new byte[]{(byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
                 (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0xFF, (byte) 0xFF};
-        Random random = new Random();
-        long nonce = random.nextLong((long) Integer.MAX_VALUE);;
+        long nonce = ThreadLocalRandom.current().nextLong(Integer.MAX_VALUE);
         String userAgent = "/Satoshi:27.0.0/"; //Ignoring this as it's not needed, can be uncommented down below
         int startHeight = 0;
         boolean relay = true;
